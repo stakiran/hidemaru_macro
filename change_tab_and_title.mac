@@ -1,0 +1,11 @@
+$newname = input("Input a new tab/title name.");
+if(result==false){
+	endmacro;
+}
+// change tab name.
+title $newname, 3;
+title -1, 3;
+// change title.
+title $newname, 0;
+title -1, 0;
+endmacro;

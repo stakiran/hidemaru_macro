@@ -1,0 +1,5 @@
+$targetpath = currentmacrodirectory + "\\" + "quicktest_run.mac";
+$hidemarupath = hidemarudir+"\\hidemaru.exe";
+$commandline = "\"" + $hidemarupath + "\"" + " " + "\"" + $targetpath + "\"";
+run $commandline;
+endmacro;

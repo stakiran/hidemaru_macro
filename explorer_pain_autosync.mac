@@ -1,0 +1,9 @@
+loaddll "HmExplorerPane.dll";
+#get_1_if_pain_opened = dllfunc("GetMode",hidemaruhandle(0));
+if(#get_1_if_pain_opened!=1){
+	endmacro;
+}
+
+#h = dllfunc("GetWindowHandle", hidemaruhandle(0) );
+// 252 同期
+#ret = sendmessage(#h, 0x111, 252, 0);

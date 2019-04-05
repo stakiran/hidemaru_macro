@@ -1,0 +1,153 @@
+// pathjumper
+// カーソル位置にあるファイルパスを秀丸エディタで開くマクロ.
+//
+// 対応している表記
+// - filename.ext         ← filename.ext を開く
+// - filename.ext@20      ← filename.ext の 21 行目を開く
+// - filename.ext#apple   ← filename.ext を開いて apple で検索する
+//
+// 仕様など
+// - 表記中のファイルが存在しない場合は何もしない.
+// - 表記中のファイルは「今開かれているファイルのあるディレクトリ」
+//   を基準とした相対パスとして扱われる.
+// - 表記として UNC パスまたは file:// プロトコルは使えない.
+// - 表記の左右は以下のいずれかでなければならない.
+//   - 行頭
+//   - 行末
+//   - 半角スペース
+//   - タブ
+//   - "
+//   - '
+//   - [ ]
+// - 行番号が大きすぎる場合は最終行にジャンプする
+
+$curdir = directory;
+#curx = x;
+$curline = gettext(0, y, linelen ,y, 0);
+
+if(strlen($curline) == 0){
+	endmacro;
+}
+$c = midstr($curline, #curx, 1);
+if($c == " " || $c == "\t"){
+	endmacro;
+}
+
+// xxxxIxxx
+//      ^
+//      ここを一文字ずつ左にズレながら見る.
+//      空白が見つかったら, その位置の一文字右が抽出開始位置.
+//
+// ただし先頭まで来ちゃったら開始位置は先頭とみなす.
+#startpos = -1;
+if(#curx == 0){
+	#startpos = 0;
+}else{
+	#searchpos = #curx;
+	while(#searchpos > 0){
+		#searchpos = #searchpos - 1;
+		$c = midstr($curline, #searchpos, 1);
+		if($c == " " || $c == "\t" || $c == "\"" || $c == "[" || $c == "'"){
+			#startpos = #searchpos + 1;
+			break;
+		}
+	}
+	if(#startpos == -1){
+		#startpos = 0;
+	}
+}
+
+#endpos = -1;
+#lineendpos = linelen;
+if(#curx == #lineendpos){
+	#endpos = #lineendpos;
+}else{
+	#searchpos = #curx;
+	while(#searchpos < #lineendpos){
+		#searchpos = #searchpos + 1;
+		$c = midstr($curline, #searchpos, 1);
+		if($c == " " || $c == "\t" || $c == "\"" || $c == "]" || $c == "'"){
+			//#endpos = #searchpos + 1;
+			#endpos = #searchpos;
+			break;
+		}
+	}
+	if(#endpos == -1){
+		#endpos = #lineendpos;
+	}
+}
+
+#pickup_length = #endpos - #startpos;
+$pickuped_word = midstr($curline, #startpos, #pickup_length);
+$start_c = midstr($curline, #startpos, 1);
+$end_c = midstr($curline, #endpos, 1);
+//message "[" + $curline + "]\n[" + $pickuped_word + "]";
+
+#idx_linejumpmark = strstr($pickuped_word, "@");
+#idx_findjumpmark = strstr($pickuped_word, "#");
+$openee_filename = $pickuped_word;
+$openee_option = "";
+if(#idx_linejumpmark != -1){
+	$openee_filename = midstr($pickuped_word, 0, #idx_linejumpmark);
+	$openee_linenumber = midstr($pickuped_word, #idx_linejumpmark + 1);
+	$openee_option = "/k" + $openee_linenumber;
+}else if(#idx_findjumpmark != -1){
+	$openee_filename = midstr($pickuped_word, 0, #idx_findjumpmark);
+	$openee_findoption = "/sCWRZ";
+	$openee_findtext = midstr($pickuped_word, #idx_findjumpmark + 1);
+	$openee_option = $openee_findoption + "," + "\"" + $openee_findtext + "\"";
+}
+
+// カレントディレクトリが秀丸エディタの macro 用フォルダになっているので
+// 今開いているファイルのディレクトリを用いる.
+$openee_fullpath = directory + "\\" + $openee_filename;
+
+// ただし絶対パスの場合は相対パス基点にしない.
+// Case1: ドライブルート.
+//        c:\hoge.txt や d:\fuga\piyo.md など.
+//        2文字目が : かどうかで判定できると思う.
+if(strlen($openee_filename)>=2 && midstr($openee_filename, 1, 1)==":"){
+	$openee_fullpath = $openee_filename;
+}
+
+// 存在しないファイルパスで openfile すると新規になっちゃうのでガードする.
+// 開けない → 無効, だとわかるので何もせずに終わるだけでいい.
+if(existfile($openee_fullpath) == false){
+	endmacro;
+}
+
+$commandline_for_openfile = $openee_option + " " + "\"" + $openee_fullpath + "\"";
+//message $commandline_for_openfile;
+
+openfile $commandline_for_openfile;
+endmacro;
+
+// [テスト]
+// 筆者環境で実行することを想定.
+//
+// "houtliner.mac"
+// 'houtliner.mac'
+// [houtliner.mac]
+// houtliner.mac
+// xxx houtliner.mac@100
+// houtliner.mac@9999 yyy
+// xxx houtliner.mac#OK_if_not_outline_file yyy
+// xxx(pathjump_with_searchjump)[houtliner.mac#OK_if_not_outline_file]yyy
+// windowsの設定ファイル C:\windows\system.ini@5 無闇に書き換えないように！
+
+/*
+// existfile の関係で unc と file:// は無理そう...
+//
+// Case2: UNCパス
+//        \\shared_folder1\group1\users\stakiran\readme.md
+//        最初の2文字が \\ かどうか
+if(strlen($openee_filename)>=2 && midstr($openee_filename, 0, 2)=="\\\\"){
+	$openee_fullpath = $openee_filename;
+}
+// Case3: file プロトコル
+//        file:///D:/work/github/stakiran/todochute/index.html
+//        最初の7文字が file:// かどうか
+if(strlen($openee_filename)>=7 && midstr($openee_filename, 0, 7)=="file://"){
+	$openee_fullpath = $openee_filename;
+}
+*/

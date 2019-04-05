@@ -1,0 +1,24 @@
+
+if(tabmode==no){
+	message "Not a tab mode...";
+	endmacro;
+}
+
+#new_taborder = taborder;
+#my_windoworder = hidemaruorder(0);
+#my_tabtotal = tabtotal;
+
+// to left
+#new_taborder = #new_taborder - 1;
+
+if(#new_taborder < 0){
+	// The taborder is 0-origin.
+	#new_taborder = #my_tabtotal - 1;
+}
+
+settaborder #my_windoworder, #new_taborder;
+
+//DEBUG
+//message "move to " + str(taborder) + " to " + str(#new_taborder);
+
+endmacro;

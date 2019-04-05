@@ -1,0 +1,64 @@
+// [使いやすいファイルヒストリメニュー]
+// 秀丸エディタ内蔵のファイルヒストリはフルパス表記のため読みづらく、
+// またメニューアクセラレータもカスタマイズできません。
+// このマクロを使うと、そのあたりをカスタマイズできます。
+//
+// デフォルトでは以下フォーマットで表示します。
+//   (番号): (ファイル名)
+// また、メニューアクセラレータはファイル名先頭文字を割り当てます。
+// (これにより文字キーでファイル名を選択できるようになります)
+//
+// 他のフォーマットにカスタマイズしたい場合は
+// このマクロを適当にいじってください (^^;
+//
+//
+// [このマクロの動作に必要なこと]
+// ・ファイルヒストリの記録を有効にする
+//   → その他 > 動作環境 > 設定の対象 > ファイル > ヒストリ
+//      「つづきも記録」にチェックを入れてください
+
+#i = 0;
+#SEARCH_UPPER_COUNT = 100;
+while(#i < #SEARCH_UPPER_COUNT){
+	$hist_fullpath = getfilehist(#i);
+	#last_delim_pos = strrstr($hist_fullpath, "\\");
+	if(#last_delim_pos == -1){
+		break;
+	}
+	$hist_filename = midstr($hist_fullpath, #last_delim_pos + 1);
+
+	// メニュー項目表示用文字列を整える.
+	// とりあえずファイル名ベースで番号とアクセラレータ付けてみる.
+	$index_for_display = str(#i);
+	if(strlen($index_for_display)==1){
+		$index_for_display = "0" + $index_for_display;
+	}
+	$hist_filename_with_accel = "&" + $hist_filename;
+	$array_for_display[#i] = $index_for_display + ": " + $hist_filename_with_accel;
+
+	// 実際に開くフルパスも保持しとかないと後で取り出せない.
+	$array_for_opening[#i] = $hist_fullpath;
+
+	#i = #i + 1;
+}
+#actual_item_count = #i;
+
+if(#use_mouse_pos==true){
+	mousemenuarray $array_for_display, #actual_item_count;
+}else{
+	menuarray $array_for_display, #actual_item_count;
+}
+
+if(result==0){
+	endmacro;
+}
+
+#selected_id = result - 1;
+$selected_fullpath = $array_for_opening[#selected_id];
+$selected_fullpath_with_surround = "\"" + $selected_fullpath + "\"";
+$editor_fullpath = hidemarudir+"\\hidemaru.exe";
+$editor_fullpath_with_surround = "\"" + $editor_fullpath + "\"";
+
+$tha_last_commandline = $editor_fullpath_with_surround + " " + $selected_fullpath_with_surround;
+//message $tha_last_commandline;
+run $tha_last_commandline;
